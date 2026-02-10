@@ -1,0 +1,49 @@
+@baseUrl = http://localhost:8080
+
+# Provide JWTs minted externally (no token issuance in this service).
+# - `adminToken` must include role `admin`.
+# - `customerToken` must include claim `customerId=cust-001` (or your chosen id).
+@adminToken = REPLACE_ME
+@customerToken = REPLACE_ME
+
+### Status
+GET {{baseUrl}}/status
+
+### Upload statement (requires admin token)
+POST {{baseUrl}}/statements
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="customerId"
+
+cust-001
+--boundary
+Content-Disposition: form-data; name="accountId"
+
+acct-001
+--boundary
+Content-Disposition: form-data; name="period"
+
+2026-01
+--boundary
+Content-Disposition: form-data; name="file"; filename="statement.pdf"
+Content-Type: application/pdf
+
+< C:\\path\\to\\statement.pdf
+--boundary--
+
+### List statements (requires customer token)
+GET {{baseUrl}}/statements?skip=0&take=50
+Authorization: Bearer {{customerToken}}
+
+### Generate download link (requires customer token)
+# Replace {{statementId}} with an id returned from /statements
+POST {{baseUrl}}/statements/{{statementId}}/download-link
+Authorization: Bearer {{customerToken}}
+
+### Download by token (requires customer token)
+# Replace {{downloadToken}} with the token portion in the returned URL
+GET {{baseUrl}}/downloads/{{downloadToken}}
+Authorization: Bearer {{customerToken}}
+
