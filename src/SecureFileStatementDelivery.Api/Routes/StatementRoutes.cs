@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using SecureFileStatementDelivery.Api.Auth;
+using SecureFileStatementDelivery.Api.Errors;
 using SecureFileStatementDelivery.Api.Models;
 using SecureFileStatementDelivery.Application.Downloads;
 using SecureFileStatementDelivery.Application.Enums;
@@ -55,14 +56,14 @@ internal static class StatementRoutes
 
         if (!request.HasFormContentType)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid content type", detail: "multipart/form-data required");
+            return ApiErrors.BadRequest("Invalid content type", "multipart/form-data required");
         }
 
         var form = await request.ReadFormAsync(ct);
         var file = form.Files.GetFile("file");
         if (file is null)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Missing file", detail: "file is required");
+            return ApiErrors.BadRequest("Missing file", "file is required");
         }
 
         var customerId = form["customerId"].ToString();
@@ -71,24 +72,21 @@ internal static class StatementRoutes
 
         if (string.IsNullOrWhiteSpace(customerId) || string.IsNullOrWhiteSpace(accountId) || string.IsNullOrWhiteSpace(period))
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Missing fields", detail: "customerId, accountId, period are required");
+            return ApiErrors.BadRequest("Missing fields", "customerId, accountId, period are required");
         }
 
         if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid file type", detail: "Only application/pdf is allowed");
+            return ApiErrors.BadRequest("Invalid file type", "Only application/pdf is allowed");
         }
 
         const long maxBytes = 25 * 1024 * 1024;
         if (file.Length <= 0 || file.Length > maxBytes)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid file size", detail: "File must be between 1 byte and 25MB");
+            return ApiErrors.BadRequest("Invalid file size", "File must be between 1 byte and 25MB");
         }
 
         await using var input = file.OpenReadStream();
-        await using var buffer = new MemoryStream();
-        await input.CopyToAsync(buffer, ct);
-        buffer.Position = 0;
 
         try
         {
@@ -100,14 +98,14 @@ internal static class StatementRoutes
                 ContentType: file.ContentType,
                 SizeBytes: file.Length,
                 Actor: user.GetActor(),
-                Content: buffer), ct);
+                Content: input), ct);
 
             logger.LogInformation("Statement uploaded. statementId={StatementId} customerId={CustomerId} sizeBytes={SizeBytes}", result.StatementId, customerId, file.Length);
             return Results.Created($"/statements/{result.StatementId}", new UploadStatementResponse(result.StatementId));
         }
         catch (ArgumentException ex)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request", detail: ex.Message);
+            return ApiErrors.InvalidRequest(ex.Message);
         }
     }
 
@@ -133,7 +131,7 @@ internal static class StatementRoutes
         }
         catch (ArgumentException ex)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request", detail: ex.Message);
+            return ApiErrors.InvalidRequest(ex.Message);
         }
 
         var response = statements.Select(s => new StatementListItemDto(
@@ -170,7 +168,7 @@ internal static class StatementRoutes
         }
         catch (ArgumentException ex)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request", detail: ex.Message);
+            return ApiErrors.InvalidRequest(ex.Message);
         }
 
         if (result is null)
@@ -206,7 +204,7 @@ internal static class StatementRoutes
         }
         catch (ArgumentException ex)
         {
-            return Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request", detail: ex.Message);
+            return ApiErrors.InvalidRequest(ex.Message);
         }
 
         if (result.Outcome == DownloadOutcome.NotFound)
