@@ -87,22 +87,13 @@ docker compose down
 
 ## Test
 
-### Run all tests (recommended)
+### Run all tests 
 
 ```powershell
-dotnet test -c Release .\SecureFileStatementDelivery.sln -m:1
-```
 
-If you ever see an MSBuild “Attempting to cancel the build…” with no errors, try:
-
-```powershell
 dotnet build -c Release .\SecureFileStatementDelivery.sln
-dotnet test -c Release .\SecureFileStatementDelivery.sln --no-build -m:1
-```
-
-### Run just the integration tests (fastest)
-
-```powershell
+dotnet test -c Release .\SecureFileStatementDelivery.sln -m:1
+OR
 dotnet test -c Release .\tests\SecureFileStatementDelivery.Api.IntegrationTests\SecureFileStatementDelivery.Api.IntegrationTests.csproj
 ```
 
@@ -115,19 +106,17 @@ Use the REST Client file:
 
 You must paste valid JWTs into `@adminToken` and `@customerToken`.
 
-### Docker end-to-end script
 
-This script mints local JWTs from `.env`, uploads a tiny PDF, lists, creates a link, and downloads it:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\e2e-docker.ps1
-```
-
-## Download portal (why it exists)
+## Download portal 
 
 The backend enforces **JWT Bearer auth** even for time-limited download tokens.
 
-Because a plain browser link can’t add the `Authorization` header, the project serves a small helper page:
+ plain browser link unable to add the `Authorization` header, this pproject serves a small helper page:
 - `http://localhost:8080/statementDownloads.html?token=...`
 
-It performs a `fetch()` to `/downloads/{token}` with `Authorization: Bearer <jwt>` and triggers the browser download.
+
+<img width="1520" height="1010" alt="image" src="https://github.com/user-attachments/assets/eb894d88-f2fe-4915-b2fe-bd39c027bd3d" />
+
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/fa96f28b-24d8-41ef-865e-4dcb3cdb63e1" />
+
+
