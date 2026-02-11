@@ -20,15 +20,20 @@ public sealed class SecureFileStatementDeliveryDbContext : DbContext
             b.HasKey(x => x.Id);
             b.Property(x => x.CustomerId).IsRequired();
             b.Property(x => x.AccountId).IsRequired();
+            b.Property(x => x.AccountType).HasConversion<string>().HasColumnName("accountType").IsRequired();
             b.Property(x => x.Period).IsRequired();
-            b.Property(x => x.OriginalFileName).IsRequired();
+            b.Property(x => x.PeriodKey).IsRequired();
+            b.Property(x => x.FileName).HasColumnName("FileName").IsRequired();
             b.Property(x => x.ContentType).IsRequired();
+            b.Property(x => x.FileSize).HasColumnName("FileSize").IsRequired();
             b.Property(x => x.Sha256).IsRequired();
             b.Property(x => x.StoredPath).IsRequired();
-            b.Property(x => x.CreatedAtUtc).IsRequired();
+            b.Property(x => x.CreatedAt).HasColumnName("CreatedAt").IsRequired();
 
-            b.HasIndex(x => new { x.CustomerId, x.CreatedAtUtc });
+            b.HasIndex(x => new { x.CustomerId, x.CreatedAt });
             b.HasIndex(x => new { x.CustomerId, x.AccountId, x.Period });
+            b.HasIndex(x => new { x.CustomerId, x.AccountId, x.PeriodKey });
+            b.HasIndex(x => new { x.CustomerId, x.AccountType, x.PeriodKey });
         });
 
         modelBuilder.Entity<AuditEvent>(b =>

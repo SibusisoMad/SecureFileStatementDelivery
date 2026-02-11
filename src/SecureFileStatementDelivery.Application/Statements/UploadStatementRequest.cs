@@ -1,11 +1,15 @@
+using SecureFileStatementDelivery.Domain.Statements;
+
 namespace SecureFileStatementDelivery.Application.Statements;
 
 public sealed record UploadStatementRequest(
     string CustomerId,
     string AccountId,
+    AccountType AccountType,
     string Period,
-    string OriginalFileName,
+    string FileName,
     string ContentType,
-    long SizeBytes,
+    long FileSize,
     string Actor,
     Stream Content);
+    

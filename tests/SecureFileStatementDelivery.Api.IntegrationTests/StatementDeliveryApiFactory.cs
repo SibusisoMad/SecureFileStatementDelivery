@@ -15,13 +15,17 @@ internal sealed class StatementDeliveryApiFactory : WebApplicationFactory<Progra
 
     public ManualTimeProvider Clock { get; } = new ManualTimeProvider(DateTimeOffset.UtcNow);
 
-    public string JwtSigningKey { get; } = "test-signing-key-32chars-minimum!!"; // 32+ chars
+    public string JwtSigningKey { get; } = "test-signing-key-32chars-minimum!!"; 
 
-    public string DownloadTokenSecret { get; } = "test-download-secret-32chars-minimum"; // 32+ chars
+    public string DownloadTokenSecret { get; } = "test-download-secret-32chars-minimum";
+
+    private readonly string? _originalDataDirEnv = Environment.GetEnvironmentVariable("DATA_DIR");
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+
+        Environment.SetEnvironmentVariable("DATA_DIR", DataDirectory);
 
         builder.ConfigureAppConfiguration(configBuilder =>
         {
@@ -37,7 +41,6 @@ internal sealed class StatementDeliveryApiFactory : WebApplicationFactory<Progra
 
                 ["DownloadTokens:Secret"] = DownloadTokenSecret,
             };
-
             configBuilder.AddInMemoryCollection(settings);
         });
 
@@ -66,8 +69,9 @@ internal sealed class StatementDeliveryApiFactory : WebApplicationFactory<Progra
         }
         catch
         {
-            // Best-effort cleanup.
         }
+
+        Environment.SetEnvironmentVariable("DATA_DIR", _originalDataDirEnv);
 
         await base.DisposeAsync();
     }

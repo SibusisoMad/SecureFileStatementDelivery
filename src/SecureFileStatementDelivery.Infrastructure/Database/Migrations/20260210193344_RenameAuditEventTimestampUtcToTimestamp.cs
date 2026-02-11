@@ -36,12 +36,12 @@ namespace SecureFileStatementDelivery.Infrastructure.Database.Migrations
                     CustomerId = table.Column<string>(type: "TEXT", nullable: false),
                     AccountId = table.Column<string>(type: "TEXT", nullable: false),
                     Period = table.Column<string>(type: "TEXT", nullable: false),
-                    OriginalFileName = table.Column<string>(type: "TEXT", nullable: false),
+                    FileName = table.Column<string>(type: "TEXT", nullable: false),
                     ContentType = table.Column<string>(type: "TEXT", nullable: false),
-                    SizeBytes = table.Column<long>(type: "INTEGER", nullable: false),
+                    FileSize = table.Column<long>(type: "INTEGER", nullable: false),
                     Sha256 = table.Column<string>(type: "TEXT", nullable: false),
                     StoredPath = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -54,9 +54,9 @@ namespace SecureFileStatementDelivery.Infrastructure.Database.Migrations
                 columns: new[] { "CustomerId", "AccountId", "Period" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Statements_CustomerId_CreatedAtUtc",
+                name: "IX_Statements_CustomerId_CreatedAt",
                 table: "Statements",
-                columns: new[] { "CustomerId", "CreatedAtUtc" });
+                columns: new[] { "CustomerId", "CreatedAt" });
         }
 
         /// <inheritdoc />

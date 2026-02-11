@@ -24,6 +24,8 @@ public sealed class UploadStatementService
     {
         ValidateRequest(request);
 
+        var periodKey = StatementPeriod.ParseYearMonth(request.Period);
+
         var statementId = Guid.NewGuid();
         var relativePath = Path.Combine(request.CustomerId, statementId.ToString("N") + ".pdf");
         var sha256 = await _files.SavePdfAsync(relativePath, request.Content, ct);
@@ -33,13 +35,15 @@ public sealed class UploadStatementService
             Id = statementId,
             CustomerId = request.CustomerId,
             AccountId = request.AccountId,
+            AccountType = request.AccountType,
             Period = request.Period,
-            OriginalFileName = request.OriginalFileName,
+            PeriodKey = periodKey,
+            FileName = request.FileName,
             ContentType = request.ContentType,
-            SizeBytes = request.SizeBytes,
+            FileSize = request.FileSize,
             Sha256 = sha256,
             StoredPath = relativePath,
-            CreatedAtUtc = _time.UtcNow
+            CreatedAt = _time.UtcNow
         };
 
         await _statementRepo.AddStatementAsync(statement, ct);
@@ -51,7 +55,7 @@ public sealed class UploadStatementService
             CustomerId = request.CustomerId,
             Actor = request.Actor,
             Timestamp = _time.UtcNow,
-            DetailsJson = $"{{\"sha256\":\"{sha256}\",\"sizeBytes\":{request.SizeBytes}}}"
+            DetailsJson = $"{{\"sha256\":\"{sha256}\",\"FileSize\":{request.FileSize}}}"
         }, ct);
 
         return new UploadStatementResult(statement.Id);
@@ -66,12 +70,17 @@ public sealed class UploadStatementService
             throw new ArgumentException("customerId, accountId, period are required");
         }
 
+        if (!StatementPeriod.TryParseYearMonth(request.Period, out _))
+        {
+            throw new ArgumentException("period must be in 'YYYY-MM' format");
+        }
+
         if (!string.Equals(request.ContentType, PdfContentType, StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException($"Only {PdfContentType} is allowed");
         }
 
-        if (request.SizeBytes <= 0 || request.SizeBytes > MaxBytes)
+        if (request.FileSize <= 0 || request.FileSize > MaxBytes)
         {
             throw new ArgumentException("File must be between 1 byte and 25MB");
         }

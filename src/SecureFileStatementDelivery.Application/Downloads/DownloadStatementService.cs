@@ -79,7 +79,7 @@ public sealed class DownloadStatementService
             DetailsJson = $"{{\"downloadTokenId\":\"{validated.TokenId:D}\"}}"
         }, ct);
 
-        return DownloadStatementResult.Ok(statement.Id, stream, statement.ContentType, statement.OriginalFileName);
+        return DownloadStatementResult.Ok(statement.Id, stream, statement.ContentType, statement.FileName);
     }
 
     private static void ValidateRequest(DownloadStatementRequest request)

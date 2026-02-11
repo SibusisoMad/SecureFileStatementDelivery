@@ -31,7 +31,9 @@ public sealed class StatementRepository : IStatementRepository
     public async Task<IReadOnlyList<Statement>> ListStatementsAsync(
         string customerId,
         string? accountId,
-        string? period,
+        AccountType? accountType,
+        int? fromPeriod,
+        int? toPeriod,
         int skip,
         int take,
         CancellationToken cancellationToken)
@@ -43,17 +45,29 @@ public sealed class StatementRepository : IStatementRepository
             query = query.Where(s => s.AccountId == accountId);
         }
 
-        if (!string.IsNullOrWhiteSpace(period))
+        if (accountType is not null)
         {
-            query = query.Where(s => s.Period == period);
+            query = query.Where(s => s.AccountType == accountType);
         }
 
-        var filtered = await query.ToListAsync(cancellationToken);
-        return filtered
-            .OrderByDescending(s => s.CreatedAtUtc)
+        if (fromPeriod is not null)
+        {
+            query = query.Where(s => s.PeriodKey >= fromPeriod);
+        }
+
+        if (toPeriod is not null)
+        {
+            query = query.Where(s => s.PeriodKey <= toPeriod);
+        }
+
+        // SQLite provider cannot translate DateTimeOffset in ORDER BY reliably.
+        // PeriodKey is an INTEGER and provides a natural, user-facing sort (latest month first).
+        return await query
+            .OrderByDescending(s => s.PeriodKey)
+            .ThenByDescending(s => s.Id)
             .Skip(skip)
             .Take(take)
-            .ToList();
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAuditEventAsync(AuditEvent auditEvent, CancellationToken cancellationToken)

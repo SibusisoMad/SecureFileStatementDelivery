@@ -5,16 +5,16 @@ using SecureFileStatementDelivery.Api.Models;
 using SecureFileStatementDelivery.Application.Downloads;
 using SecureFileStatementDelivery.Application.Enums;
 using SecureFileStatementDelivery.Application.Statements;
+using SecureFileStatementDelivery.Domain.Statements;
 
 namespace SecureFileStatementDelivery.Api.Routes;
 
-internal static class StatementRoutes
+public static class StatementRoutes
 {
     public static IEndpointRouteBuilder MapStatementRoutes(this IEndpointRouteBuilder app)
     {
-        var statements = app.MapGroup("/statements").WithTags("Statements");
-
-        statements.MapPost("/", UploadStatement)
+        app.MapPost("/statements", UploadStatement)
+            .WithTags("Statements")
             .RequireAuthorization("AdminOnly")
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
@@ -23,12 +23,14 @@ internal static class StatementRoutes
             .WithName("UploadStatement")
             .WithOpenApi();
 
-        statements.MapGet("/", ListStatements)
+        app.MapGet("/statements", ListStatements)
+            .WithTags("Statements")
             .Produces<IEnumerable<StatementListItemDto>>(StatusCodes.Status200OK)
             .WithName("ListStatements")
             .WithOpenApi();
 
-        statements.MapPost("/{id:guid}/download-link", CreateDownloadLink)
+        app.MapPost("/statements/{id:guid}/download-link", CreateDownloadLink)
+            .WithTags("Statements")
             .Produces<DownloadLinkResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound)
             .WithName("CreateDownloadLink")
@@ -68,6 +70,12 @@ internal static class StatementRoutes
 
         var customerId = form["customerId"].ToString();
         var accountId = form["accountId"].ToString();
+        var accountTypeText = form["accountType"].ToString();
+        if (string.IsNullOrWhiteSpace(accountTypeText))
+        {
+            // Backwards-compatible alias.
+            accountTypeText = form["accountKind"].ToString();
+        }
         var period = form["period"].ToString();
 
         if (string.IsNullOrWhiteSpace(customerId) || string.IsNullOrWhiteSpace(accountId) || string.IsNullOrWhiteSpace(period))
@@ -90,17 +98,19 @@ internal static class StatementRoutes
 
         try
         {
+            var accountType = GetAccountTypeOrDefault(accountTypeText, AccountType.Main);
             var result = await service.UploadAsync(new UploadStatementRequest(
                 CustomerId: customerId,
                 AccountId: accountId,
+                AccountType: accountType,
                 Period: period,
-                OriginalFileName: file.FileName,
+                FileName: file.FileName,
                 ContentType: file.ContentType,
-                SizeBytes: file.Length,
+                FileSize: file.Length,
                 Actor: user.GetActor(),
                 Content: input), ct);
 
-            logger.LogInformation("Statement uploaded. statementId={StatementId} customerId={CustomerId} sizeBytes={SizeBytes}", result.StatementId, customerId, file.Length);
+            logger.LogInformation("Statement uploaded. statementId={StatementId} customerId={CustomerId} FileSize={FileSize}", result.StatementId, customerId, file.Length);
             return Results.Created($"/statements/{result.StatementId}", new UploadStatementResponse(result.StatementId));
         }
         catch (ArgumentException ex)
@@ -113,7 +123,10 @@ internal static class StatementRoutes
         ClaimsPrincipal user,
         ListStatementsService service,
         string? accountId,
+        string? accountType,
+        string? accountKind,
         string? period,
+        int? lastMonths,
         int skip,
         int take,
         CancellationToken ct)
@@ -127,7 +140,8 @@ internal static class StatementRoutes
         IReadOnlyList<SecureFileStatementDelivery.Domain.Statements.Statement> statements;
         try
         {
-            statements = await service.ListAsync(new ListStatementsRequest(customerId, accountId, period, skip, take), ct);
+            var accountTypeFilter = ReadAccountTypeFilter(accountType, accountKind);
+            statements = await service.ListAsync(new ListStatementsRequest(customerId, accountId, accountTypeFilter, period, lastMonths, skip, take), ct);
         }
         catch (ArgumentException ex)
         {
@@ -135,14 +149,21 @@ internal static class StatementRoutes
         }
 
         var response = statements.Select(s => new StatementListItemDto(
-            s.Id,
-            s.AccountId,
-            s.Period,
-            s.OriginalFileName,
-            s.SizeBytes,
-            s.CreatedAtUtc));
+            Id: s.Id,
+            AccountId: s.AccountId,
+            AccountType: s.AccountType.ToString(),
+            Period: s.Period,
+            FileName: s.FileName,
+            FileSize: s.FileSize,
+            CreatedAt: s.CreatedAt));
 
         return Results.Ok(response);
+    }
+
+    private static AccountType? ReadAccountTypeFilter(string? accountType, string? accountKind)
+    {
+        var text = string.IsNullOrWhiteSpace(accountType) ? accountKind : accountType;
+        return string.IsNullOrWhiteSpace(text) ? null : ReadAccountType(text);
     }
 
     private static async Task<IResult> CreateDownloadLink(
@@ -220,5 +241,55 @@ internal static class StatementRoutes
 
         logger.LogInformation("Statement downloaded. statementId={StatementId} customerId={CustomerId}", result.StatementId, customerId);
         return Results.File(result.Stream!, result.ContentType!, fileDownloadName: result.FileName!, enableRangeProcessing: true);
+    }
+
+    private static AccountType GetAccountTypeOrDefault(string? text, AccountType @default)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return @default;
+        }
+
+        return ReadAccountType(text);
+    }
+
+    private static AccountType ReadAccountType(string text)
+    {
+        if (!TryReadAccountType(text, out var accountType))
+        {
+            throw new ArgumentException("accountType must be Main or Savings");
+        }
+
+        return accountType;
+    }
+
+    private static bool TryReadAccountType(string text, out AccountType accountType)
+    {
+        var normalized = NormalizeAccountType(text);
+
+        accountType = normalized switch
+        {
+            "main" => AccountType.Main,
+            "savings" => AccountType.Savings,
+            _ => default
+        };
+
+        return normalized is "main" or "savings";
+    }
+
+    private static string NormalizeAccountType(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        var lettersOnly = input
+            .Trim()
+            .ToLowerInvariant()
+            .Where(char.IsLetter)
+            .ToArray();
+
+        return new string(lettersOnly);
     }
 }

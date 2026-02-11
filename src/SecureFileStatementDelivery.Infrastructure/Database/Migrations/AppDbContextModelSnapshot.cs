@@ -59,18 +59,23 @@ namespace SecureFileStatementDelivery.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<SecureFileStatementDelivery.Domain.Statements.AccountType>("AccountType")
+                        .HasConversion<string>()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("accountType");
+
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CustomerId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OriginalFileName")
+                    b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -78,11 +83,14 @@ namespace SecureFileStatementDelivery.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("PeriodKey")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Sha256")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<long>("SizeBytes")
+                    b.Property<long>("FileSize")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("StoredPath")
@@ -91,9 +99,13 @@ namespace SecureFileStatementDelivery.Infrastructure.Database.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId", "CreatedAtUtc");
+                    b.HasIndex("CustomerId", "CreatedAt");
 
                     b.HasIndex("CustomerId", "AccountId", "Period");
+
+                    b.HasIndex("CustomerId", "AccountId", "PeriodKey");
+
+                    b.HasIndex("CustomerId", "AccountType", "PeriodKey");
 
                     b.ToTable("Statements");
                 });

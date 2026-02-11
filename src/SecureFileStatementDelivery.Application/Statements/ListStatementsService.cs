@@ -6,13 +6,15 @@ namespace SecureFileStatementDelivery.Application.Statements;
 public sealed class ListStatementsService
 {
     private readonly IStatementRepository _statementRepo;
+    private readonly ITimeProvider _timer;
 
     private const int DefaultTake = 50;
     private const int MaxTake = 200;
 
-    public ListStatementsService(IStatementRepository statementRepo)
+    public ListStatementsService(IStatementRepository statementRepo, ITimeProvider timer)
     {
         _statementRepo = statementRepo;
+        _timer = timer;
     }
 
     public async Task<IReadOnlyList<Statement>> ListAsync(ListStatementsRequest request, CancellationToken ct)
@@ -35,7 +37,37 @@ public sealed class ListStatementsService
             skip = 0;
         }
 
-        return await _statementRepo.ListStatementsAsync(request.CustomerId, request.AccountId, request.Period, skip, take, ct);
+        int? fromPeriod = null;
+        int? toPeriod = null;
+
+        if (!string.IsNullOrWhiteSpace(request.Period))
+        {
+            var periodKey = StatementPeriod.ParseYearMonth(request.Period);
+            fromPeriod = periodKey;
+            toPeriod = periodKey;
+        }
+        else if (request.LastMonths is not null)
+        {
+            var lastMonths = request.LastMonths.Value;
+            if (lastMonths is not (1 or 3))
+            {
+                throw new ArgumentException("lastMonths must be 1 or 3", nameof(request.LastMonths));
+            }
+
+            var now = _timer.UtcNow;
+            toPeriod = StatementPeriod.CurrentYearMonth(now);
+            fromPeriod = StatementPeriod.YearMonthMonthsAgo(now, lastMonths - 1);
+        }
+
+        return await _statementRepo.ListStatementsAsync(
+            request.CustomerId,
+            request.AccountId,
+            request.AccountType,
+            fromPeriod,
+            toPeriod,
+            skip,
+            take,
+            ct);
     }
 
     private static void ValidateRequest(ListStatementsRequest request)

@@ -7,32 +7,26 @@
   <link rel="stylesheet" href="/statementDownloads.css" />
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>Download statement</h1>
-      <p class="muted">
-        This service requires <strong> an auth token</strong>
-      
-      </p>
-    </header>
+  <header class="appbar">
+    <div class="appbar-inner">
+    </div>
+  </header>
 
+  <main class="container">
     <section class="card">
+      <div class="card-head">
+        <h1>Download statement</h1>
+      </div>
+
       <label for="token">Download token</label>
       <input id="token" name="token" type="text" placeholder="Paste the token (or open this page with ?token=...)" autocomplete="off" />
-      <p class="hint">Token is the last path segment from <code>/downloads/{token}</code>.</p>
+      <p class="hint"> <code></code>.</p>
 
       <label for="jwt">JWT (Bearer token)</label>
       <textarea id="jwt" name="jwt" rows="5" placeholder="Paste JWT here" autocomplete="off"></textarea>
 
       <div class="row">
-        <label class="checkbox">
-          <input id="remember" type="checkbox" />
-          Remember me
-        </label>
-      </div>
-
-      <div class="row">
-        <button id="downloadBtn" type="button">Download PDF</button>
+        <button id="downloadBtn" type="button">Download Statement</button>
         <button id="clearBtn" type="button" class="secondary">Clear</button>
       </div>
 

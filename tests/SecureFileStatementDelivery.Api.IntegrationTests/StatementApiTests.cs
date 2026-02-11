@@ -44,16 +44,16 @@ public sealed class StatementApiTests
 
         var now = api.Clock.UtcNow;
         var adminToken = CreateAdminToken(api, now);
-        var custAToken = CreateCustomerToken(api, now, subject: "cust-a", customerId: "cust-A");
-        var custBToken = CreateCustomerToken(api, now, subject: "cust-b", customerId: "cust-B");
+        var cust1Token = CreateCustomerToken(api, now, subject: "cust-001", customerId: "cust-001");
+        var cust2Token = CreateCustomerToken(api, now, subject: "cust-002", customerId: "cust-002");
 
-        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-A");
+        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-001");
 
-        var listA = await ListStatementsAsync(client, custAToken);
-        Assert.Contains(listA, s => s.Id == statementId);
+        var list1 = await ListStatementsAsync(client, cust1Token);
+        Assert.Contains(list1, s => s.Id == statementId);
 
-        var listB = await ListStatementsAsync(client, custBToken);
-        Assert.DoesNotContain(listB, s => s.Id == statementId);
+        var list2 = await ListStatementsAsync(client, cust2Token);
+        Assert.DoesNotContain(list2, s => s.Id == statementId);
     }
 
     [Fact]
@@ -64,14 +64,14 @@ public sealed class StatementApiTests
 
         var now = api.Clock.UtcNow;
         var adminToken = CreateAdminToken(api, now);
-        var custAToken = CreateCustomerToken(api, now, subject: "cust-a", customerId: "cust-A");
-        var custBToken = CreateCustomerToken(api, now, subject: "cust-b", customerId: "cust-B");
+        var cust1Token = CreateCustomerToken(api, now, subject: "cust-001", customerId: "cust-001");
+        var cust2Token = CreateCustomerToken(api, now, subject: "cust-002", customerId: "cust-002");
 
-        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-A");
+        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-001");
 
-        var downloadToken = await CreateDownloadTokenAsync(client, custAToken, statementId);
+        var downloadToken = await CreateDownloadTokenAsync(client, cust1Token, statementId);
 
-        var response = await GetAsync(client, $"/downloads/{downloadToken}", custBToken);
+        var response = await GetAsync(client, $"/downloads/{downloadToken}", cust2Token);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -83,9 +83,9 @@ public sealed class StatementApiTests
 
         var now = api.Clock.UtcNow;
         var adminToken = CreateAdminToken(api, now);
-        var customerToken = CreateCustomerToken(api, now, subject: "cust-a", customerId: "cust-A");
+        var customerToken = CreateCustomerToken(api, now, subject: "cust-001", customerId: "cust-001");
 
-        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-A");
+        var statementId = await UploadStatementAsync(client, adminToken, customerId: "cust-001");
         var downloadToken = await CreateDownloadTokenAsync(client, customerToken, statementId);
 
         api.Clock.Advance(TimeSpan.FromMinutes(6));
@@ -107,7 +107,7 @@ public sealed class StatementApiTests
         {
             var content = new MultipartFormDataContent();
             content.Add(new StringContent("cust-001"), "customerId");
-            content.Add(new StringContent("acct-001"), "accountId");
+            content.Add(new StringContent("acct-main-001"), "accountId");
             content.Add(new StringContent("2026-01"), "period");
 
             var bytes = Encoding.UTF8.GetBytes("hello");
@@ -123,7 +123,7 @@ public sealed class StatementApiTests
         {
             var content = new MultipartFormDataContent();
             content.Add(new StringContent("cust-001"), "customerId");
-            content.Add(new StringContent("acct-001"), "accountId");
+            content.Add(new StringContent("acct-main-001"), "accountId");
             content.Add(new StringContent("2026-01"), "period");
 
             const int maxBytes = 25 * 1024 * 1024;
@@ -140,12 +140,95 @@ public sealed class StatementApiTests
         }
     }
 
-    private static async Task<Guid> UploadStatementAsync(HttpClient client, string adminBearerToken, string customerId)
+    [Fact]
+    public async Task List_LastMonths_FiltersByPeriod()
+    {
+        await using var api = new StatementDeliveryApiFactory();
+        using var client = api.CreateClient();
+
+        var now = api.Clock.UtcNow;
+        var adminToken = CreateAdminToken(api, now);
+        var customerToken = CreateCustomerToken(api, now, subject: "cust-001", customerId: "cust-001");
+
+        var period0 = now.ToString("yyyy-MM");
+        var period1 = now.AddMonths(-1).ToString("yyyy-MM");
+        var period2 = now.AddMonths(-2).ToString("yyyy-MM");
+        var period3 = now.AddMonths(-3).ToString("yyyy-MM");
+
+        await UploadStatementAsync(client, adminToken, customerId: "cust-001", accountId: "acct-main-001", period: period0);
+        await UploadStatementAsync(client, adminToken, customerId: "cust-001", accountId: "acct-main-001", period: period1);
+        await UploadStatementAsync(client, adminToken, customerId: "cust-001", accountId: "acct-main-001", period: period2);
+        await UploadStatementAsync(client, adminToken, customerId: "cust-001", accountId: "acct-main-001", period: period3);
+
+        var list3 = await ListStatementsAsync(client, customerToken, "/statements?lastMonths=3&skip=0&take=50");
+        Assert.Contains(list3, s => s.Period == period0);
+        Assert.Contains(list3, s => s.Period == period1);
+        Assert.Contains(list3, s => s.Period == period2);
+        Assert.DoesNotContain(list3, s => s.Period == period3);
+
+        var list1 = await ListStatementsAsync(client, customerToken, "/statements?lastMonths=1&skip=0&take=50");
+        Assert.Contains(list1, s => s.Period == period0);
+        Assert.DoesNotContain(list1, s => s.Period == period1);
+        Assert.DoesNotContain(list1, s => s.Period == period2);
+        Assert.DoesNotContain(list1, s => s.Period == period3);
+    }
+
+    [Fact]
+    public async Task List_AccountType_FiltersMainVsSavings()
+    {
+        await using var api = new StatementDeliveryApiFactory();
+        using var client = api.CreateClient();
+
+        var now = api.Clock.UtcNow;
+        var adminToken = CreateAdminToken(api, now);
+        var customerToken = CreateCustomerToken(api, now, subject: "cust-001", customerId: "cust-001");
+
+        var period = now.ToString("yyyy-MM");
+
+        var mainId = await UploadStatementAsync(
+            client,
+            adminToken,
+            customerId: "cust-001",
+            accountId: "acct-main-001",
+            period: period,
+            accountType: "Main");
+
+        var savingsId = await UploadStatementAsync(
+            client,
+            adminToken,
+            customerId: "cust-001",
+            accountId: "acct-savings-001",
+            period: period,
+            accountType: "Savings");
+
+        var listMain = await ListStatementsAsync(client, customerToken, "/statements?accountType=main&skip=0&take=50");
+        Assert.Contains(listMain, s => s.Id == mainId);
+        Assert.DoesNotContain(listMain, s => s.Id == savingsId);
+
+        var listSavings = await ListStatementsAsync(client, customerToken, "/statements?accountType=savings&skip=0&take=50");
+        Assert.Contains(listSavings, s => s.Id == savingsId);
+        Assert.DoesNotContain(listSavings, s => s.Id == mainId);
+    }
+
+    private static Task<Guid> UploadStatementAsync(HttpClient client, string adminBearerToken, string customerId)
+        => UploadStatementAsync(client, adminBearerToken, customerId, accountId: "acct-main-001", period: "2026-01");
+
+    private static async Task<Guid> UploadStatementAsync(
+        HttpClient client,
+        string adminBearerToken,
+        string customerId,
+        string accountId,
+        string period,
+        string? accountType = null)
     {
         var content = new MultipartFormDataContent();
         content.Add(new StringContent(customerId), "customerId");
-        content.Add(new StringContent("acct-001"), "accountId");
-        content.Add(new StringContent("2026-01"), "period");
+        content.Add(new StringContent(accountId), "accountId");
+        content.Add(new StringContent(period), "period");
+        if (!string.IsNullOrWhiteSpace(accountType))
+        {
+            content.Add(new StringContent(accountType), "accountType");
+        }
 
         var pdfBytes = Encoding.ASCII.GetBytes("%PDF-1.4\n%\u00E2\u00E3\u00CF\u00D3\n1 0 obj\n<<>>\nendobj\n");
         var file = new ByteArrayContent(pdfBytes);
@@ -177,10 +260,17 @@ public sealed class StatementApiTests
         return Guid.Empty;
     }
 
-    private static async Task<List<StatementListItemDto>> ListStatementsAsync(HttpClient client, string customerBearerToken)
+    private static Task<List<StatementListItemDto>> ListStatementsAsync(HttpClient client, string customerBearerToken)
+        => ListStatementsAsync(client, customerBearerToken, "/statements?skip=0&take=50");
+
+    private static async Task<List<StatementListItemDto>> ListStatementsAsync(HttpClient client, string customerBearerToken, string path)
     {
-        var response = await GetAsync(client, "/statements?skip=0&take=50", customerBearerToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var response = await GetAsync(client, path, customerBearerToken);
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)response.StatusCode} {response.StatusCode}. Body: {body}");
+        }
 
         var json = await response.Content.ReadAsStringAsync();
         var payload = JsonSerializer.Deserialize<List<StatementListItemDto>>(json, JsonOptions);
@@ -224,8 +314,9 @@ public sealed class StatementApiTests
     private sealed record StatementListItemDto(
         Guid Id,
         string AccountId,
+        string AccountType,
         string Period,
-        string OriginalFileName,
-        long SizeBytes,
-        DateTimeOffset CreatedAtUtc);
+        string FileName,
+        long FileSize,
+        DateTimeOffset CreatedAt);
 }
