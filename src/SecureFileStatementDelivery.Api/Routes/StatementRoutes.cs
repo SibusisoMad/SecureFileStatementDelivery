@@ -177,9 +177,10 @@ internal static class StatementRoutes
         }
 
         var url = $"{http.Request.Scheme}://{http.Request.Host}/downloads/{result.Token}";
+        var portalUrl = $"{http.Request.Scheme}://{http.Request.Host}/statementDownloads.html?token={Uri.EscapeDataString(result.Token)}";
 
         logger.LogInformation("Download link generated. statementId={StatementId} customerId={CustomerId} expiresAtUtc={ExpiresAtUtc}", id, customerId, result.ExpiresAtUtc);
-        return Results.Ok(new DownloadLinkResponse(url, result.ExpiresAtUtc));
+        return Results.Ok(new DownloadLinkResponse(url, result.ExpiresAtUtc, portalUrl));
     }
 
     private static async Task<IResult> DownloadByToken(

@@ -4,5 +4,6 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <BuildInParallel>false</BuildInParallel>
   </PropertyGroup>
 </Project>

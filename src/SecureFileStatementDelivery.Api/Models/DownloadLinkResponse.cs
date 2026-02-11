@@ -1,3 +1,3 @@
 namespace SecureFileStatementDelivery.Api.Models;
 
-public sealed record DownloadLinkResponse(string Url, DateTimeOffset ExpiresAtUtc);
+public sealed record DownloadLinkResponse(string Url, DateTimeOffset ExpiresAtUtc, string? PortalUrl = null);

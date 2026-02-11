@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Secure File Statement Delivery — Download</title>
+  <link rel="stylesheet" href="/statementDownloads.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Download statement</h1>
+      <p class="muted">
+        This service requires <strong> an auth token</strong>
+      
+      </p>
+    </header>
+
+    <section class="card">
+      <label for="token">Download token</label>
+      <input id="token" name="token" type="text" placeholder="Paste the token (or open this page with ?token=...)" autocomplete="off" />
+      <p class="hint">Token is the last path segment from <code>/downloads/{token}</code>.</p>
+
+      <label for="jwt">JWT (Bearer token)</label>
+      <textarea id="jwt" name="jwt" rows="5" placeholder="Paste JWT here" autocomplete="off"></textarea>
+
+      <div class="row">
+        <label class="checkbox">
+          <input id="remember" type="checkbox" />
+          Remember me
+        </label>
+      </div>
+
+      <div class="row">
+        <button id="downloadBtn" type="button">Download PDF</button>
+        <button id="clearBtn" type="button" class="secondary">Clear</button>
+      </div>
+
+      <pre id="output" class="output" aria-live="polite"></pre>
+
+      <details class="details">
+        <summary>Troubleshooting</summary>
+        <ul>
+          <li>HTTP 401: JWT missing/expired/invalid.</li>
+          <li>HTTP 403: JWT customer does not own the statement.</li>
+          <li>HTTP 404: link expired or token invalid.</li>
+        </ul>
+      </details>
+    </section>
+
+    <footer class="muted">
+      <p>
+        Tip: you can generate a link via <code>POST /statements/{id}/download-link</code> (Swagger/Postman) and use the returned <code>portalUrl</code>.
+      </p>
+    </footer>
+  </main>
+
+  <script src="/statementDownloads.js"></script>
+</body>
+</html>
