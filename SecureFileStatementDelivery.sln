@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureFileStatementDelivery
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureFileStatementDelivery.Api", "src\SecureFileStatementDelivery.Api\SecureFileStatementDelivery.Api.csproj", "{23062D3C-E6C1-4A9E-BD91-6515BC8B54ED}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{808F42E7-BCB3-46F0-8694-AC53CD49233D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureFileStatementDelivery.Api.IntegrationTests", "tests\SecureFileStatementDelivery.Api.IntegrationTests\SecureFileStatementDelivery.Api.IntegrationTests.csproj", "{446871BF-2614-4104-A842-5C0B69FAB937}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +75,18 @@ Global
 		{23062D3C-E6C1-4A9E-BD91-6515BC8B54ED}.Release|x64.Build.0 = Release|Any CPU
 		{23062D3C-E6C1-4A9E-BD91-6515BC8B54ED}.Release|x86.ActiveCfg = Release|Any CPU
 		{23062D3C-E6C1-4A9E-BD91-6515BC8B54ED}.Release|x86.Build.0 = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|x64.Build.0 = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Debug|x86.Build.0 = Debug|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|Any CPU.Build.0 = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|x64.ActiveCfg = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|x64.Build.0 = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|x86.ActiveCfg = Release|Any CPU
+		{446871BF-2614-4104-A842-5C0B69FAB937}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,5 +96,6 @@ Global
 		{8BF2AFB9-1945-45C5-9EB5-24623A16447C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{568A7D33-D68A-4D1C-8E86-D0CBAFA0475C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{23062D3C-E6C1-4A9E-BD91-6515BC8B54ED} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{446871BF-2614-4104-A842-5C0B69FAB937} = {808F42E7-BCB3-46F0-8694-AC53CD49233D}
 	EndGlobalSection
 EndGlobal

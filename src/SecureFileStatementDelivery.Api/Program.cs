@@ -134,6 +134,10 @@ else
 
 app.UseApiRequestLogging();
 app.UseApiHeaders();
+
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseApiStatusCodeProblems();
 app.UseApiSecurity();
 

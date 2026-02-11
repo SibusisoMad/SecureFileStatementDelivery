@@ -6,7 +6,7 @@ WORKDIR /src
 COPY SecureFileStatementDelivery.sln ./
 COPY src/ ./src/
 
-RUN dotnet restore ./SecureFileStatementDelivery.sln
+RUN dotnet restore ./src/SecureFileStatementDelivery.Api/SecureFileStatementDelivery.Api.csproj
 RUN dotnet publish ./src/SecureFileStatementDelivery.Api/SecureFileStatementDelivery.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
