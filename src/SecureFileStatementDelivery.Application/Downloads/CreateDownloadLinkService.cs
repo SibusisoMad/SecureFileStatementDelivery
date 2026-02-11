@@ -43,7 +43,8 @@ public sealed class CreateDownloadLinkService
             StatementId = statement.Id,
             CustomerId = request.CustomerId,
             Actor = request.Actor,
-            Timestamp = _time.UtcNow
+            Timestamp = _time.UtcNow,
+            DetailsJson = $"{{\"expiresAtUtc\":\"{expiresAt:O}\"}}"
         }, ct);
 
         return new CreateDownloadLinkResult(token, expiresAt);

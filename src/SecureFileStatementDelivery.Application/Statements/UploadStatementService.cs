@@ -50,7 +50,8 @@ public sealed class UploadStatementService
             StatementId = statement.Id,
             CustomerId = request.CustomerId,
             Actor = request.Actor,
-            Timestamp = _time.UtcNow
+            Timestamp = _time.UtcNow,
+            DetailsJson = $"{{\"sha256\":\"{sha256}\",\"sizeBytes\":{request.SizeBytes}}}"
         }, ct);
 
         return new UploadStatementResult(statement.Id);

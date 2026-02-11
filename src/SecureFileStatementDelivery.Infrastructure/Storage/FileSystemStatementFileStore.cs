@@ -78,11 +78,12 @@ public sealed class FileSystemStatementFileStore : IStatementFileStore
 
         var combined = Path.Combine(_baseDir, relativePath);
         var full = Path.GetFullPath(combined);
-        var baseFull = Path.GetFullPath(_baseDir);
+        var baseFull = Path.GetFullPath(_baseDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
 
         if (!full.StartsWith(baseFull, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Invalid relative path.");
+            throw new InvalidOperationException("Invalid path.");
         }
 
         return full;

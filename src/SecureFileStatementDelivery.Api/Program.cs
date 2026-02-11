@@ -10,12 +10,17 @@ using SecureFileStatementDelivery.Application;
 using SecureFileStatementDelivery.Api.Database;
 using SecureFileStatementDelivery.Api.Middleware.Errors;
 using SecureFileStatementDelivery.Api.Middleware.Headers;
+using SecureFileStatementDelivery.Api.Middleware.Logging;
 using SecureFileStatementDelivery.Api.Options;
 using SecureFileStatementDelivery.Api.Middleware.Security;
 using SecureFileStatementDelivery.Api.Routes;
 using SecureFileStatementDelivery.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+var log4NetConfigPath = Path.Combine(builder.Environment.ContentRootPath, "log4net.config");
+builder.Logging.AddLog4Net(log4NetConfigPath);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -127,6 +132,7 @@ else
     app.UseExceptionHandler();
 }
 
+app.UseApiRequestLogging();
 app.UseApiHeaders();
 app.UseApiStatusCodeProblems();
 app.UseApiSecurity();

@@ -37,6 +37,11 @@ public sealed class DownloadStatementService
             return DownloadStatementResult.NotFound();
         }
 
+        if (validated.IssuedAtUtc > _time.UtcNow.AddMinutes(2))
+        {
+            return DownloadStatementResult.NotFound();
+        }
+
         if (!string.Equals(validated.CustomerId, request.CustomerId, StringComparison.Ordinal))
         {
             return DownloadStatementResult.Forbidden(validated.StatementId);
@@ -70,7 +75,8 @@ public sealed class DownloadStatementService
             StatementId = statement.Id,
             CustomerId = request.CustomerId,
             Actor = request.Actor,
-            Timestamp = _time.UtcNow
+            Timestamp = _time.UtcNow,
+            DetailsJson = $"{{\"downloadTokenId\":\"{validated.TokenId:D}\"}}"
         }, ct);
 
         return DownloadStatementResult.Ok(statement.Id, stream, statement.ContentType, statement.OriginalFileName);

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SecureFileStatementDelivery.Application.Interfaces;
 using SecureFileStatementDelivery.Application.Downloads;
+using SecureFileStatementDelivery.Infrastructure.Time;
 
 namespace SecureFileStatementDelivery.Infrastructure.Tokens;
 
@@ -16,8 +17,13 @@ public sealed class HmacDownloadTokenService : IDownloadTokenService
     };
 
     private readonly byte[] _secret;
+    private readonly ITimeProvider _time;
 
-    public HmacDownloadTokenService(IOptions<DownloadTokenOptions> options)
+    private static readonly TimeSpan MaxTokenLifetime = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan AllowedIssuedAtSkew = TimeSpan.FromMinutes(2);
+    private const int MaxTokenChars = 4096;
+
+    public HmacDownloadTokenService(IOptions<DownloadTokenOptions> options, ITimeProvider time)
     {
         var raw = options.Value.Secret;
         _secret = TryDecodeBase64(raw) ?? Encoding.UTF8.GetBytes(raw);
@@ -25,39 +31,74 @@ public sealed class HmacDownloadTokenService : IDownloadTokenService
         {
             throw new InvalidOperationException("Download token secret is too short; use 32+ bytes.");
         }
+
+        _time = time;
     }
 
     public string CreateToken(CreateDownloadTokenRequest request)
     {
-        var payload = new TokenPayload(request.StatementId, request.CustomerId, request.ExpiresAtUtc);
+        var issuedAtUtc = _time.UtcNow;
+        var payload = new TokenPayload(
+            TokenId: Guid.NewGuid(),
+            StatementId: request.StatementId,
+            CustomerId: request.CustomerId,
+            IssuedAtUtc: issuedAtUtc,
+            ExpiresAtUtc: request.ExpiresAtUtc);
         var payloadJson = JsonSerializer.Serialize(payload, JsonOptions);
         var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
         var payloadB64 = Base64UrlEncode(payloadBytes);
 
-        var sig = ComputeHmac(payloadB64);
+        var sig = ComputeHmacBase64Url(payloadB64);
         return $"{payloadB64}.{sig}";
     }
 
     public bool TryValidate(string token, out ValidatedDownloadToken validated)
     {
-        validated = new ValidatedDownloadToken(Guid.Empty, string.Empty, DateTimeOffset.MinValue);
+        validated = new ValidatedDownloadToken(
+            TokenId: Guid.Empty,
+            StatementId: Guid.Empty,
+            CustomerId: string.Empty,
+            IssuedAtUtc: DateTimeOffset.MinValue,
+            ExpiresAtUtc: DateTimeOffset.MinValue);
 
         if (string.IsNullOrWhiteSpace(token))
         {
             return false;
         }
 
-        var parts = token.Split('.', 2);
-        if (parts.Length != 2)
+        if (token.Length > MaxTokenChars)
         {
             return false;
         }
 
-        var payloadB64 = parts[0];
-        var sigB64 = parts[1];
+        token = token.Trim();
 
-        var expected = ComputeHmac(payloadB64);
-        if (!FixedTimeEquals(expected, sigB64))
+        var dotIndex = token.IndexOf('.');
+        if (dotIndex <= 0 || dotIndex == token.Length - 1)
+        {
+            return false;
+        }
+
+        var payloadB64 = token[..dotIndex];
+        var sigB64 = token[(dotIndex + 1)..];
+
+        if (payloadB64.Length == 0 || sigB64.Length == 0)
+        {
+            return false;
+        }
+
+        byte[] providedSig;
+        try
+        {
+            providedSig = Base64UrlDecode(sigB64);
+        }
+        catch
+        {
+            return false;
+        }
+
+        var expectedSig = ComputeHmacBytes(payloadB64);
+        if (!CryptographicOperations.FixedTimeEquals(expectedSig, providedSig))
         {
             return false;
         }
@@ -82,20 +123,49 @@ public sealed class HmacDownloadTokenService : IDownloadTokenService
             return false;
         }
 
-        if (payload is null || payload.StatementId == Guid.Empty || string.IsNullOrWhiteSpace(payload.CustomerId))
+        if (payload is null
+            || payload.TokenId == Guid.Empty
+            || payload.StatementId == Guid.Empty
+            || string.IsNullOrWhiteSpace(payload.CustomerId))
         {
             return false;
         }
 
-        validated = new ValidatedDownloadToken(payload.StatementId, payload.CustomerId, payload.ExpiresAtUtc);
+        if (payload.ExpiresAtUtc <= payload.IssuedAtUtc)
+        {
+            return false;
+        }
+
+        var lifetime = payload.ExpiresAtUtc - payload.IssuedAtUtc;
+        if (lifetime <= TimeSpan.Zero || lifetime > MaxTokenLifetime)
+        {
+            return false;
+        }
+
+        var now = _time.UtcNow;
+        if (payload.IssuedAtUtc > now.Add(AllowedIssuedAtSkew))
+        {
+            return false;
+        }
+
+        validated = new ValidatedDownloadToken(
+            payload.TokenId,
+            payload.StatementId,
+            payload.CustomerId,
+            payload.IssuedAtUtc,
+            payload.ExpiresAtUtc);
         return true;
     }
 
-    private string ComputeHmac(string payloadB64)
+    private byte[] ComputeHmacBytes(string payloadB64)
     {
         using var hmac = new HMACSHA256(_secret);
-        var sig = hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadB64));
-        return Base64UrlEncode(sig);
+        return hmac.ComputeHash(Encoding.UTF8.GetBytes(payloadB64));
+    }
+
+    private string ComputeHmacBase64Url(string payloadB64)
+    {
+        return Base64UrlEncode(ComputeHmacBytes(payloadB64));
     }
 
     private static byte[]? TryDecodeBase64(string raw)
@@ -108,13 +178,6 @@ public sealed class HmacDownloadTokenService : IDownloadTokenService
         {
             return null;
         }
-    }
-
-    private static bool FixedTimeEquals(string a, string b)
-    {
-        var ba = Encoding.UTF8.GetBytes(a);
-        var bb = Encoding.UTF8.GetBytes(b);
-        return CryptographicOperations.FixedTimeEquals(ba, bb);
     }
 
     private static string Base64UrlEncode(byte[] data)
@@ -138,9 +201,18 @@ public sealed class HmacDownloadTokenService : IDownloadTokenService
         {
             s += "=";
         }
+        else if (mod == 1)
+        {
+            throw new FormatException("Invalid base64url string.");
+        }
 
         return Convert.FromBase64String(s);
     }
 
-    private sealed record TokenPayload(Guid StatementId, string CustomerId, DateTimeOffset ExpiresAtUtc);
+    private sealed record TokenPayload(
+        Guid TokenId,
+        Guid StatementId,
+        string CustomerId,
+        DateTimeOffset IssuedAtUtc,
+        DateTimeOffset ExpiresAtUtc);
 }

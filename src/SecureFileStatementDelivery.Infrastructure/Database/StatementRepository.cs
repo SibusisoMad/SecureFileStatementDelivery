@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SecureFileStatementDelivery.Application.Interfaces;
 using SecureFileStatementDelivery.Domain.Audit;
 using SecureFileStatementDelivery.Domain.Statements;
@@ -8,10 +9,12 @@ namespace SecureFileStatementDelivery.Infrastructure.Database;
 public sealed class StatementRepository : IStatementRepository
 {
     private readonly SecureFileStatementDeliveryDbContext _db;
+    private readonly ILogger<StatementRepository> _logger;
 
-    public StatementRepository(SecureFileStatementDeliveryDbContext db)
+    public StatementRepository(SecureFileStatementDeliveryDbContext db, ILogger<StatementRepository> logger)
     {
         _db = db;
+        _logger = logger;
     }
 
     public async Task AddStatementAsync(Statement statement, CancellationToken cancellationToken)
@@ -45,15 +48,23 @@ public sealed class StatementRepository : IStatementRepository
             query = query.Where(s => s.Period == period);
         }
 
-        return await query
+        var filtered = await query.ToListAsync(cancellationToken);
+        return filtered
             .OrderByDescending(s => s.CreatedAtUtc)
             .Skip(skip)
             .Take(take)
-            .ToListAsync(cancellationToken);
+            .ToList();
     }
 
     public async Task AddAuditEventAsync(AuditEvent auditEvent, CancellationToken cancellationToken)
     {
+        _logger.LogInformation(
+            "Audit persisted: {EventType} statementId={StatementId} customerId={CustomerId} actor={Actor}",
+            auditEvent.EventType,
+            auditEvent.StatementId,
+            auditEvent.CustomerId,
+            auditEvent.Actor);
+
         _db.AuditEvents.Add(auditEvent);
         await _db.SaveChangesAsync(cancellationToken);
     }
