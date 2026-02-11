@@ -67,11 +67,6 @@ Build and start:
 docker compose up -d --build
 ```
 
-Verify:
-
-```powershell
-Invoke-WebRequest -UseBasicParsing "http://localhost:8080/status" | Select-Object -ExpandProperty Content
-```
 
 Open in browser:
 - Swagger UI: `http://localhost:8080/swagger`
